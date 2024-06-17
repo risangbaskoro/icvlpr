@@ -88,48 +88,51 @@ class Trainer:
             self.epoch = epoch + 1
             self.step = self.epoch * len(self.dl_train)
 
-            self.train_loss = 0.0
-
-            for batch in (pbar := tqdm(self.dl_train,
-                                       desc=f'Epoch {self.epoch}',
-                                       unit='step')):
-                self.optimizer.zero_grad()
-
-                data, targets = batch
-                data = data.type(torch.float).to(self.device)
-                targets = targets.type(torch.float).to(self.device)
-
-                logits = self.model(data)
-
-                logits = logits.mean(dim=2)
-
-                # Calculate each sequence length for each sample
-                sample_batch_size, sequence_length = logits.size(0), logits.size(1)
-                input_lengths = torch.full(size=(sample_batch_size,), fill_value=sequence_length, dtype=torch.long)
-
-                # Calculate target length for each target sample
-                target_lengths = targets.ne(0).sum(dim=1)
-
-                # Transpose the logits
-                logits = logits.permute(2, 0, 1)
-
-                log_probs = F.log_softmax(logits, dim=-1)
-
-                # Calculate loss
-                loss = self.loss_fn(log_probs=log_probs,
-                                    targets=targets,
-                                    input_lengths=input_lengths,
-                                    target_lengths=target_lengths)
-
-                loss.backward()
-
-                self.optimizer.step()
-
-                self.train_loss += loss.item()
-                pbar.set_postfix(loss=self.train_loss / len(self.dl_train))
+            self.train_model()
 
             if self.epoch % self.args.checkpoint_save_interval == 0:
                 self.save()
+
+    def train_model(self):
+        self.train_loss = 0.0
+
+        for batch in (pbar := tqdm(self.dl_train,
+                                   desc=f'Epoch {self.epoch}',
+                                   unit='step')):
+            self.optimizer.zero_grad()
+
+            data, targets = batch
+            data = data.type(torch.float).to(self.device)
+            targets = targets.type(torch.float).to(self.device)
+
+            logits = self.model(data)
+
+            logits = logits.mean(dim=2)
+
+            # Calculate each sequence length for each sample
+            sample_batch_size, sequence_length = logits.size(0), logits.size(1)
+            input_lengths = torch.full(size=(sample_batch_size,), fill_value=sequence_length, dtype=torch.long)
+
+            # Calculate target length for each target sample
+            target_lengths = targets.ne(0).sum(dim=1)
+
+            # Transpose the logits
+            logits = logits.permute(2, 0, 1)
+
+            log_probs = F.log_softmax(logits, dim=-1)
+
+            # Calculate loss
+            loss = self.loss_fn(log_probs=log_probs,
+                                targets=targets,
+                                input_lengths=input_lengths,
+                                target_lengths=target_lengths)
+
+            loss.backward()
+
+            self.optimizer.step()
+
+            self.train_loss += loss.item()
+            pbar.set_postfix(loss=self.train_loss / len(self.dl_train))
 
     def save(self):
         checkpoint_path = os.path.join(self.args.checkpoint_dir, f'epoch_{self.epoch}.pth')
