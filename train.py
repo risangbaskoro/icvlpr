@@ -68,7 +68,7 @@ class Trainer:
     def init_model(self):
         self.log('Initializing model...')
         self.model = ICVLPR()
-        self.model.to(torch.device('cuda'))
+        self.model.to(torch.device('cuda'))  # TODO: Make device agnostic code.
 
         if self.args.checkpoint:
             self.log(f'Restoring model from {self.args.checkpoint}')
@@ -77,6 +77,7 @@ class Trainer:
             ))
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
+        # TODO: Learning rate scheduler: StepLR. Drop learning rate by a factor of 10 every 100k epoch.
         self.loss_fn = nn.CTCLoss(blank=0, zero_infinity=False, reduction="mean")
         self.log('Model initialized.')
 
