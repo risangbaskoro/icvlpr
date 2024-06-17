@@ -19,7 +19,8 @@ class ICVLPR(nn.Module):
                  num_classes: int = 37,
                  input_channels: int = 3):
         super().__init__()
-        assert input_channels in [1, 3]
+        assert input_channels in [1, 3], f'ICVLPR input_channels must be either 1 or 3, got {input_channels}'
+
         self.num_classes = num_classes
 
         self.backbone = nn.ModuleDict({
