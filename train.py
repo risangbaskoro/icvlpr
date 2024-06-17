@@ -88,11 +88,9 @@ class Trainer:
 
             self.train_loss = 0.0
 
-            self.log(f'Epoch {self.epoch}')
-            for batch in tqdm(self.dl_train,
-                              unit='steps',
-                              desc=f'Epoch {self.epoch}',
-                              leave=False):
+            for batch in (pbar := tqdm(self.dl_train,
+                                       desc=f'Epoch {self.epoch}',
+                                       unit='step')):
                 self.optimizer.zero_grad()
 
                 data, targets = batch
@@ -125,10 +123,8 @@ class Trainer:
 
                 self.optimizer.step()
 
-                self.train_loss += loss
-
-            avg_loss = self.train_loss / len(self.dl_train)
-            self.log(f'Train loss: {avg_loss:.4f}')
+                self.train_loss += loss.item()
+                pbar.set_postfix(loss=self.train_loss / len(self.dl_train))
 
             if self.epoch % self.args.checkpoint_save_interval == 0:
                 self.save()
