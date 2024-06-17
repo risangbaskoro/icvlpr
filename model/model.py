@@ -3,7 +3,10 @@ from torch import Tensor
 from torch import nn
 from torch.nn import functional as F
 
-from blocks import SmallBasicBlock
+from blocks import (
+    GlobalContextBlock,
+    SmallBasicBlock
+)
 
 
 class ICVLPR(nn.Module):
@@ -39,14 +42,40 @@ class ICVLPR(nn.Module):
             "dropout_2": nn.Dropout2d(p=0.5),
         })
 
+        self.gc_depth_adjust = nn.Sequential(
+            nn.Conv2d(in_channels=960, out_channels=256, kernel_size=(1, 1), stride=1, padding=0),
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
+        )
+
+        self.pre_decoder = nn.Sequential(
+            nn.Conv2d(in_channels=256, out_channels=num_classes, kernel_size=(1, 13),
+                      padding='same'),
+            nn.BatchNorm2d(num_classes),
+            nn.ReLU(inplace=True)
+        )
+
     def forward(self, x):
-        gc_inputs = {}
+        gc_outputs = []
 
         for layer in self.backbone:
             x = self.backbone[layer](x)
             if layer in ["relu_1", "basic_block_1", "basic_block_2", "basic_block_3"]:
-                gc_inputs[layer] = x
+                gc_outputs.append(F.adaptive_avg_pool2d(x, (3, 90)))
 
-        # TODO: Apply Global Context
+        scale_5 = torch.div(x, x.square().mean())
+
+        x = torch.concat([*gc_outputs, scale_5], dim=1)
+        x = self.gc_depth_adjust(x)
+
+        x = self.pre_decoder(x)
 
         return x
+
+
+if __name__ == '__main__':
+    sample_img = torch.rand(1, 3, 24, 94)
+    model = ICVLPR()
+
+    result = model(sample_img)
+    print(result.shape)

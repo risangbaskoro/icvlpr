@@ -3,6 +3,8 @@ from torch import Tensor
 from torch import nn
 from torch.nn import functional as F
 
+from typing import Tuple
+
 
 class SmallBasicBlock(nn.Module):
     """Small Basic Block for Residual
@@ -49,3 +51,17 @@ class SmallBasicBlock(nn.Module):
         x = self.block3(x)
         x = self.block4(x)
         return x
+
+
+class GlobalContextBlock(nn.Module):
+    def __init__(self, output_size: Tuple):
+        super().__init__()
+        self.pool = nn.AdaptiveAvgPool2d(output_size=output_size)
+
+    def forward(self, x):
+        pool = self.pool(x)
+        squared = torch.square(pool)
+        mean_squared = torch.mean(squared, dim=1, keepdim=True)
+        ret = torch.div(pool, mean_squared)
+        print(ret.shape)
+        return ret
