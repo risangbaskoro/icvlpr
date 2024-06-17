@@ -29,7 +29,7 @@ class ICVLPDataset(Dataset):
                  size: Tuple[int, int] = (94, 24),
                  corpus_dict: dict[str: int] = None
                  ) -> None:
-        assert subset in ['train', 'test', 'val'], f'Subset must be "train", "test", or "val"'
+        assert subset in ['train', 'test', 'val'], f'Subset must be "train", "test", or "val". Got "{subset}"'
 
         super().__init__()
         self.root = root
