@@ -1,9 +1,25 @@
 import argparse
+import os
+
+import torch
+from torch import nn
+from torch.nn import functional as F
+from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
+from dataset import ICVLPDataset
+from model import ICVLPR
 
 
 class Trainer:
     def __init__(self):
         self.args = None
+        self.ds_train = None
+        self.dl_train = None
+        self.ds_val = None
+        self.dl_val = None
+        self.model = None
 
         self.parse_args()
         self.init_dataset()
@@ -13,23 +29,114 @@ class Trainer:
     def parse_args(self):
         parser = argparse.ArgumentParser()
         # Training Setting
+        parser.add_argument('--learning-rate', type=float, default=0.001)
+        parser.add_argument('--batch-size', type=int, default=32)
         parser.add_argument('--epoch-start', type=int, default=0)
         parser.add_argument('--epoch-end', type=int, default=250000)
         # Checkpoint
-        parser.add_argument('--checkpoint', type=bool, action=argparse.BooleanOptionalAction)
+        parser.add_argument('--checkpoint', type=str)
         parser.add_argument('--checkpoint-dir', type=str, default='checkpoints')
         parser.add_argument('--checkpoint-save-interval', type=int, default=1000)
 
         self.args = parser.parse_args()
 
     def init_dataset(self):
-        pass
+        self.log('Initializing dataset...')
+
+        def collate_fn(batch):
+            """Collate function for the dataloader.
+
+            Automatically adds padding to the target of each batch.
+            """
+            # Extract samples and targets from the batch
+            samples, targets = zip(*batch)
+
+            # Pad the target sequences to the same length
+            padded_targets = pad_sequence(targets, batch_first=True, padding_value=0)
+
+            # Return padded samples and targets
+            return torch.stack(samples), padded_targets
+
+        self.ds_train = ICVLPDataset('data', subset='train')
+        self.dl_train = DataLoader(self.ds_train, batch_size=self.args.batch_size, shuffle=True, collate_fn=collate_fn)
+        self.log(f'Train Dataset Length: {len(self.ds_train)}')
+
+        self.ds_val = ICVLPDataset('data', subset='val')
+        self.dl_val = DataLoader(self.ds_val, batch_size=self.args.batch_size, shuffle=False, collate_fn=collate_fn)
+        self.log('Datasets initialized.')
 
     def init_model(self):
-        pass
+        self.log('Initializing model...')
+        self.model = ICVLPR()
+        self.model.to(torch.device('cuda'))
+
+        if self.args.checkpoint:
+            self.log(f'Restoring model from {self.args.checkpoint}')
+            self.log(self.model.load_state_dict(
+                torch.load(self.args.checkpoint, map_location=torch.device('cuda'))
+            ))
+
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
+        self.loss_fn = nn.CTCLoss(blank=0, zero_infinity=False, reduction="mean")
+        self.log('Model initialized.')
 
     def train(self):
-        pass
+        for epoch in range(self.args.epoch_start, self.args.epoch_end):
+            self.epoch = epoch + 1
+            self.step = self.epoch * len(self.dl_train)
+
+            self.train_loss = 0.0
+
+            self.log(f'Epoch {self.epoch}')
+            for batch in tqdm(self.dl_train,
+                              unit='steps',
+                              desc=f'Epoch {self.epoch}',
+                              leave=False):
+                self.optimizer.zero_grad()
+
+                data, targets = batch
+                data = data.type(torch.float).to(torch.device('cuda'))
+                targets = targets.type(torch.float).to(torch.device('cuda'))
+
+                logits = self.model(data)
+
+                logits = logits.mean(dim=2)
+
+                # Calculate each sequence length for each sample
+                sample_batch_size, sequence_length = logits.size(0), logits.size(1)
+                input_lengths = torch.full(size=(sample_batch_size,), fill_value=sequence_length, dtype=torch.long)
+
+                # Calculate target length for each target sample
+                target_lengths = targets.ne(0).sum(dim=1)
+
+                # Transpose the logits
+                logits = logits.permute(2, 0, 1)
+
+                log_probs = F.log_softmax(logits, dim=-1)
+
+                # Calculate loss
+                loss = self.loss_fn(log_probs=log_probs,
+                                    targets=targets,
+                                    input_lengths=input_lengths,
+                                    target_lengths=target_lengths)
+
+                loss.backward()
+
+                self.optimizer.step()
+
+                self.train_loss += loss
+
+            avg_loss = self.train_loss / len(self.dl_train)
+            self.log(f'Train loss: {avg_loss:.4f}')
+
+            if self.epoch % self.args.checkpoint_save_interval == 0:
+                self.save()
+
+    def save(self):
+        checkpoint_path = os.path.join(self.args.checkpoint_dir, f'epoch_{self.epoch}.pth')
+        os.makedirs(self.args.checkpoint_dir, exist_ok=True)
+        torch.save(self.model.state_dict(), checkpoint_path)
+        self.log(f'Checkpoint saved to {checkpoint_path}')
 
     @staticmethod
     def log(message):
