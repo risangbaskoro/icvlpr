@@ -26,7 +26,8 @@ class ICVLPDataset(Dataset):
                  transform: Optional[Callable] = None,
                  target_transform: Optional[Callable] = None,
                  download: bool = False,
-                 size: Tuple[int, int] = (94, 24)
+                 size: Tuple[int, int] = (94, 24),
+                 corpus_dict: dict[str: int] = None
                  ) -> None:
         assert subset in ['train', 'test', 'val'], f'Subset must be "train", "test", or "val"'
 
@@ -37,8 +38,9 @@ class ICVLPDataset(Dataset):
         self.target_transform = target_transform
         self.size = size
 
-        if download:
-            self.download()
+        if corpus_dict is not None:
+            self.corpus_dict = corpus_dict
+            self.labels_dict = {v: k for k, v in corpus_dict.items()}
 
         if not self._check_exists():
             raise RuntimeError("Dataset not found. You can use download=True to download it")
