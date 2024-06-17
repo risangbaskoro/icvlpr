@@ -79,7 +79,7 @@ class Trainer:
             ))
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
-        # TODO: Learning rate scheduler: StepLR. Drop learning rate by a factor of 10 every 100k epoch.
+        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=100000, gamma=0.1)
         self.loss_fn = nn.CTCLoss(blank=0, zero_infinity=False, reduction="mean")
         self.log('Model initialized.')
 
@@ -89,6 +89,8 @@ class Trainer:
             self.step = self.epoch * len(self.dl_train)
 
             self.train_model()
+
+            self.lr_scheduler.step()
 
             if self.epoch % self.args.checkpoint_save_interval == 0:
                 self.save()
