@@ -21,6 +21,8 @@ class Trainer:
         self.dl_val = None
         self.model = None
 
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
         self.parse_args()
         self.init_dataset()
         self.init_model()
@@ -68,7 +70,7 @@ class Trainer:
     def init_model(self):
         self.log('Initializing model...')
         self.model = ICVLPR()
-        self.model.to(torch.device('cuda'))  # TODO: Make device agnostic code.
+        self.model.to(self.device)
 
         if self.args.checkpoint:
             self.log(f'Restoring model from {self.args.checkpoint}')
@@ -94,8 +96,8 @@ class Trainer:
                 self.optimizer.zero_grad()
 
                 data, targets = batch
-                data = data.type(torch.float).to(torch.device('cuda'))
-                targets = targets.type(torch.float).to(torch.device('cuda'))
+                data = data.type(torch.float).to(self.device)
+                targets = targets.type(torch.float).to(self.device)
 
                 logits = self.model(data)
 
