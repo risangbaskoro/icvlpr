@@ -42,8 +42,11 @@ class ICVLPDataset(Dataset):
             self.corpus_dict = corpus_dict
             self.labels_dict = {v: k for k, v in corpus_dict.items()}
 
-        if not self._check_exists():
-            raise RuntimeError("Dataset not found. You can use download=True to download it")
+        # if download:
+        #     self.download()
+        #
+        # if not self._check_exists():
+        #     raise RuntimeError("Dataset not found. You can use download=True to download it")
 
         self.data, self.targets = self.load_data()
 
