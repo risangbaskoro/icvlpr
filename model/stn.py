@@ -21,7 +21,7 @@ class LocNet(nn.Module):
         x1 = self.avg_pool(x)
         x1 = F.relu(self.conv1(x1))
         x2 = F.relu(self.conv2(x))
-        xs = torch.cat((x1, x2), dim=1).flatten()
+        xs = torch.cat((x1, x2), dim=1).flatten(start_dim=1)
         xs = self.dropout(xs)
         xs = F.tanh(self.fc1(xs))
         theta = F.tanh(self.fc2(xs).view(-1, 2, 3))
