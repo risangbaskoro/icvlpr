@@ -19,14 +19,14 @@ class ICVLPR(nn.Module):
     def __init__(self,
                  num_classes: int = 37,
                  input_channels: int = 3,
-                 use_stn: bool = True,
-                 use_global_context: bool = True):
+                 stn: bool = True,
+                 gc: bool = True):
         super().__init__()
         assert input_channels in [1, 3], f'ICVLPR input_channels must be either 1 or 3, got {input_channels}'
 
         self.num_classes = num_classes
-        self.global_context = use_global_context
-        self.stn = use_stn
+        self.with_gc = gc
+        self.with_stn = stn
 
         self.stn_layer = SpatialTransformerNetwork()
 
@@ -61,17 +61,17 @@ class ICVLPR(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
-        if self.stn:
+        if self.with_stn:
             x = self.stn_layer(x)
 
         backbone_outputs = []
         for layer in self.backbone:
             x = self.backbone[layer](x)
 
-            if self.global_context:
+            if self.with_gc:
                 backbone_outputs.append(x)
 
-        if self.global_context:
+        if self.with_gc:
             x = self.forward_global_context(backbone_outputs)
 
         x = self.pre_decoder(x)
@@ -92,5 +92,8 @@ class ICVLPR(nn.Module):
 
         return x
 
-    def use_global_context(self, active: bool = True) -> None:
-        self.global_context = active
+    def stn(self, enable: bool = True) -> None:
+        self.with_stn = enable
+
+    def gc(self, enable: bool = True) -> None:
+        self.with_gc = enable
