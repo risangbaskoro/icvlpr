@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 from dataset import ICVLPDataset
 from model import ICVLPR
+from train_loss import ctc_loss
 
 
 class Trainer:
@@ -95,6 +96,9 @@ class Trainer:
             self.epoch = epoch + 1
             self.step = self.epoch * len(self.dl_train)
 
+            self.val_avg_loss = 0.0
+            self.validate()
+
             self.train_loss = 0.0
 
             for batch in (pbar := tqdm(self.dl_train,
@@ -104,7 +108,7 @@ class Trainer:
 
                 self.train_model(data, targets)
 
-                pbar.set_postfix(loss=self.train_loss / len(self.dl_train))
+                pbar.set_postfix(loss=self.train_loss / len(self.dl_train), val_loss=self.val_avg_loss)
 
             self.lr_scheduler.step()
 
@@ -114,36 +118,29 @@ class Trainer:
     def train_model(self, data, targets):
         data = data.to(self.device)
         targets = targets.to(self.device)
-
         self.optimizer.zero_grad()
-
         logits = self.model(data)
-
-        logits = logits.mean(dim=2)
-
-        # Calculate each sequence length for each sample
-        sample_batch_size, sequence_length = logits.size(0), logits.size(1)
-        input_lengths = torch.full(size=(sample_batch_size,), fill_value=sequence_length, dtype=torch.long)
-
-        # Calculate target length for each target sample
-        target_lengths = targets.ne(0).sum(dim=1)
-
-        # Transpose the logits
-        logits = logits.permute(2, 0, 1)
-
-        log_probs = F.log_softmax(logits, dim=-1)
-
-        # Calculate loss
-        loss = self.loss_fn(log_probs=log_probs,
-                            targets=targets,
-                            input_lengths=input_lengths,
-                            target_lengths=target_lengths)
-
+        loss = ctc_loss(self.loss_fn, logits, targets)
         loss.backward()
-
         self.optimizer.step()
-
         self.train_loss += loss.item()
+
+    def validate(self):
+        total_loss, total_count = 0, 0
+        self.model.eval()
+        with torch.no_grad():
+            for batch in (pbar := tqdm(self.dl_val,
+                                       desc=f'Validation {self.epoch}',
+                                       leave=False)):
+                data, targets = batch
+                data, targets = data.to(self.device), targets.to(self.device)
+                logits = self.model(data)
+                loss = ctc_loss(self.loss_fn, logits, targets)
+                total_loss += loss.item()
+                total_count += logits.size(0)
+                self.val_avg_loss = total_loss / total_count
+                pbar.set_postfix(val_loss=self.val_avg_loss)
+        self.model.train()
 
     def save(self):
         checkpoint_path = os.path.join(self.args.checkpoint_dir, f'epoch_{self.epoch}.pth')
