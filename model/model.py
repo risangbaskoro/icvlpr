@@ -4,6 +4,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from .blocks import SmallBasicBlock
+from .stn import SpatialTransformerNetwork
 
 
 class ICVLPR(nn.Module):
@@ -18,12 +19,16 @@ class ICVLPR(nn.Module):
     def __init__(self,
                  num_classes: int = 37,
                  input_channels: int = 3,
+                 use_stn: bool = True,
                  use_global_context: bool = True):
         super().__init__()
         assert input_channels in [1, 3], f'ICVLPR input_channels must be either 1 or 3, got {input_channels}'
 
         self.num_classes = num_classes
         self.global_context = use_global_context
+        self.stn = use_stn
+
+        self.stn_layer = SpatialTransformerNetwork()
 
         self.backbone = nn.ModuleDict({
             "conv_1": nn.Conv2d(in_channels=input_channels, out_channels=64, kernel_size=(3, 3), stride=1, padding=1),
@@ -56,8 +61,10 @@ class ICVLPR(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
-        backbone_outputs = []
+        if self.stn:
+            x = self.stn_layer(x)
 
+        backbone_outputs = []
         for layer in self.backbone:
             x = self.backbone[layer](x)
 
