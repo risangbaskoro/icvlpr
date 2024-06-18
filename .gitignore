@@ -9,7 +9,8 @@
 **/__pycache__/
 
 # Scratch Files
-**/*scratch.py
+**/*_scratch.*
+**/scratches/
 
 # Data directory
 /data/
