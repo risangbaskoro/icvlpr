@@ -41,6 +41,13 @@ class Trainer:
         parser.add_argument('--checkpoint-save-interval', type=int, default=1000)
 
         self.args = parser.parse_args()
+        self.log_args()
+
+    def log_args(self):
+        self.log('-' * 20)
+        for key, value in vars(self.args).items():
+            self.log(f'{key:<25}: {value}')
+        self.log('-' * 20)
 
     def init_dataset(self):
         self.log('Initializing dataset...')
