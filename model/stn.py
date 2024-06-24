@@ -14,6 +14,7 @@ class LocNet(nn.Module):
         self.fc1 = nn.Linear(4608, 32)
         self.fc2 = nn.Linear(32, 6)
 
+        # TODO: Check the grad of fc2. If present, use no_grad contexf. We dont't want the gradient trace.
         self.fc2.weight.data.zero_()
         self.fc2.bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
 
