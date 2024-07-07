@@ -36,6 +36,7 @@ class Trainer:
         parser.add_argument('--batch-size', type=int, default=32)
         parser.add_argument('--epoch-start', type=int, default=0)
         parser.add_argument('--epoch-end', type=int, default=250000)
+        parser.add_argument('--learning-rate-scheduler-step', type=int, default=100000)
         # Checkpoint
         parser.add_argument('--checkpoint', type=str)
         parser.add_argument('--checkpoint-dir', type=str, default='checkpoints')
@@ -87,7 +88,9 @@ class Trainer:
             ))
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=100000, gamma=0.1)
+        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer,
+                                                            step_size=self.args.learning_rate_scheduler_step,
+                                                            gamma=0.1)
         self.loss_fn = nn.CTCLoss(blank=0, zero_infinity=False, reduction="mean")
         self.log('Model initialized.')
 
