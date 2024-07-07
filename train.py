@@ -84,7 +84,7 @@ class Trainer:
         if self.args.checkpoint:
             self.log(f'Restoring model from {self.args.checkpoint}')
             self.log(self.model.load_state_dict(
-                torch.load(self.args.checkpoint, map_location=torch.device('cuda'))
+                torch.load(self.args.checkpoint, map_location=self.device)
             ))
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
