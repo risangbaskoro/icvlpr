@@ -1,14 +1,10 @@
 import os
-
-import numpy as np
-import torch
-
 from typing import Callable, Optional, Tuple
 
-from PIL import Image
-
-from torch import Tensor
+import torch
 from torch.utils.data import Dataset
+
+from PIL import Image
 
 
 class ICVLPDataset(Dataset):
@@ -55,8 +51,6 @@ class ICVLPDataset(Dataset):
 
     def __getitem__(self, idx):
         img, target = self.data[idx], self.targets[idx]
-        target = [self.corpus_dict[char] for char in target]
-        target = torch.tensor(target, dtype=torch.long)
 
         if self.transform is not None:
             img = self.transform(img)
@@ -75,16 +69,13 @@ class ICVLPDataset(Dataset):
             img_path = os.path.join(images_path, filename)
             img = Image.open(img_path)
             img = img.resize(self.size)
-            img = np.asarray(img)
-            # Convert to C x H x W
-            img = np.moveaxis(img, -1, 0)
             images.append(img)
 
             # Labels
             label = filename.split('_')[0]
             labels.append(label)
 
-        return Tensor(np.array(images)), np.array(labels)
+        return images, labels
 
     def download(self):
         raise NotImplementedError  # TODO: Download dataset if not exists in filesystem
