@@ -4,7 +4,7 @@ import os
 import torch
 
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import ConcatDataset, DataLoader
 from torchvision import transforms
 from torchmetrics.text import CharErrorRate
 from tqdm import tqdm
@@ -13,7 +13,7 @@ from dataset import ICVLPDataset
 from decoder import GreedyCTCDecoder
 from metrics import LetterNumberRecognitionRate
 from model import LPRNet, SpatialTransformerLayer, LocNet
-from utils import TColor, pad_target_sequence, LABELS_DICT
+from utils import CHARS_DICT, LABELS_DICT, TColor, pad_target_sequence
 
 
 class Trainer:
@@ -112,6 +112,12 @@ class Trainer:
             default=True,
             help="Save last checkpoint of the run",
         )
+        parser.add_argument(
+            "--concat-dataset",
+            action=argparse.BooleanOptionalAction,
+            default=False,
+            help="Concatenate dataset for final training",
+        )
 
         # Checkpoint
         parser.add_argument(
@@ -192,16 +198,25 @@ class Trainer:
             transform=img_transforms,
             download=True,
         )
+        self.ds_val = ICVLPDataset(
+            "data",
+            subset="val",
+            transform=img_transforms,
+        )
+
+        if self.args.concat_dataset:
+            self.ds_train = ConcatDataset([self.ds_train, self.ds_val])
+            self.ds_val = ICVLPDataset(
+                "data",
+                subset="test",
+                transform=img_transforms,
+            )
+
         self.dl_train = DataLoader(
             self.ds_train,
             batch_size=self.args.batch_size,
             shuffle=True,
             collate_fn=pad_target_sequence,
-        )
-        self.ds_val = ICVLPDataset(
-            "data",
-            subset="val",
-            transform=img_transforms,
         )
         self.dl_val = DataLoader(
             self.ds_val,
@@ -217,11 +232,9 @@ class Trainer:
         self.log("Initializing model...")
 
         loc = LocNet()
-        stn = SpatialTransformerLayer(
-            localization=loc, align_corners=True
-        )  # TODO: Experiment with align_corners
+        stn = SpatialTransformerLayer(localization=loc, align_corners=True)
 
-        num_classes = len(self.ds_train.corpus_dict)
+        num_classes = len(CHARS_DICT)
 
         self.model = LPRNet(num_classes=num_classes, stn=stn).to(self.device)
         self.model.use_stn(False)
@@ -272,6 +285,7 @@ class Trainer:
             "epoch-end": self.args.epoch_end,
             "epoch": abs(self.args.epoch_end - self.args.epoch_start),
             "dataset": self.ds_train.__class__.__name__,
+            "dataset-concatenated": self.args.concat_dataset,
             "loss": self.loss_fn.__class__.__name__,
             "optimizer": self.optimizer.__class__.__name__,
         }
@@ -454,16 +468,28 @@ class Trainer:
             running_rln += self.rln(preds, targets)
             running_cer += self.cer(preds, targets)
 
-            pbar.set_postfix(
-                loss=f"{self.avg_loss:.4f}",
-                acc=f"{self.avg_acc:.4f}",
-                rln=f"{self.avg_rln:.4f}",
-                cer=f"{self.avg_cer:.4f}",
-                val_loss=f"{running_loss / (i + 1):.4f}",
-                val_acc=f"{running_acc / (i + 1):.4f}",
-                val_rln=f"{running_rln / (i + 1):.4f}",
-                val_cer=f"{running_cer / (i + 1):.4f}",
-            )
+            if self.args.concat_dataset:
+                pbar.set_postfix(
+                    loss=f"{self.avg_loss:.4f}",
+                    acc=f"{self.avg_acc:.4f}",
+                    rln=f"{self.avg_rln:.4f}",
+                    cer=f"{self.avg_cer:.4f}",
+                    test_loss=f"{running_loss / (i + 1):.4f}",
+                    test_acc=f"{running_acc / (i + 1):.4f}",
+                    test_rln=f"{running_rln / (i + 1):.4f}",
+                    test_cer=f"{running_cer / (i + 1):.4f}",
+                )
+            else:
+                pbar.set_postfix(
+                    loss=f"{self.avg_loss:.4f}",
+                    acc=f"{self.avg_acc:.4f}",
+                    rln=f"{self.avg_rln:.4f}",
+                    cer=f"{self.avg_cer:.4f}",
+                    val_loss=f"{running_loss / (i + 1):.4f}",
+                    val_acc=f"{running_acc / (i + 1):.4f}",
+                    val_rln=f"{running_rln / (i + 1):.4f}",
+                    val_cer=f"{running_cer / (i + 1):.4f}",
+                )
 
         self.val_avg_loss = running_loss / len(self.dl_val)
         self.val_avg_acc = running_acc / len(self.dl_val)
