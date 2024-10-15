@@ -14,53 +14,47 @@ class LetterNumberRecognitionRate(nn.Module):
     See: https://doi.org/10.1049/iet-its.2017.0138
 
     Args:
-        decoder (nn.Module): A decoder module that takes logits as input and returns the decoded sequence.
         blank (int): Index of the blank token in the vocabulary.
 
     Shape:
-        pred (Tensor): :math:`(N, C)` where `N` is the batch size and `C` is the number of classes.
-        target (Tensor): :math:`(N, C)` where `N` is the batch size and `C` is the number of classes.
+        pred (Tensor): :math:`(N, T)` where `N` is the batch size and `T` is the time-steps.
+        target (Tensor): :math:`(N, T)` where `N` is the batch size and `T` is the time-steps.
     """
 
     def __init__(
         self,
-        decoder: nn.Module = None,
         blank: int = 0,
     ) -> None:
         super().__init__()
-
-        self.decoder = decoder
         self.blank = blank
 
-    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    def forward(self, preds: list, targets: torch.Tensor) -> torch.Tensor:
         """Compute the Letter and Number Recognition Rate.
 
         Args:
-            logits (torch.Tensor): Logits of shape (N, C, T).
-            target (torch.Tensor): Target tensor of shape (N, T).
+            preds (list, np.ndarray): Logits of shape (N, T).
+            targets (torch.Tensor): Target tensor of shape (N, T).
 
         Returns:
             The Letter and Number Recognition Rate.
         """
-        if logits.dim() != 3:
-            raise ValueError("Expected a 3D tensor for logits.")
-
         if targets.dim() != 2:
             raise ValueError("Expected a 2D tensor for target.")
 
-        decoded_sequences = self.decoder(logits)
-        
         # Convert targets to a list of lists and then remove the blank token elements
         aligned_targets = targets.tolist()
-        aligned_targets = [[token for token in sequence if token != self.blank] for sequence in aligned_targets]
+        aligned_targets = [
+            [token for token in sequence if token != self.blank]
+            for sequence in aligned_targets
+        ]
 
         corrects = 0
         lengths = 0
 
-        for decoded_sequence, target_sequence in zip(decoded_sequences, aligned_targets):
+        for pred_sequence, target_sequence in zip(preds, aligned_targets):
             num_correct = 0
 
-            for pred, target in zip(decoded_sequence, target_sequence):
+            for pred, target in zip(pred_sequence, target_sequence):
                 if pred == target:
                     num_correct += 1
 

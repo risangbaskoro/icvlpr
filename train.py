@@ -4,16 +4,16 @@ import os
 import torch
 
 from torch import nn
-from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torchvision import transforms
+from torchmetrics.text import CharErrorRate
 from tqdm import tqdm
 
 from dataset import ICVLPDataset
 from decoder import GreedyCTCDecoder
 from metrics import LetterNumberRecognitionRate
 from model import LPRNet, SpatialTransformerLayer, LocNet
-from utils import TColor, pad_target_sequence
+from utils import TColor, pad_target_sequence, LABELS_DICT
 
 
 class Trainer:
@@ -31,15 +31,23 @@ class Trainer:
         self.model = None
         self.optimizer = None
         self.loss_fn = None
-        self.acc_fn = None
+
+        self.decoder = None
+        self.rln = None
+        self.cer = None
+
         self.lr_scheduler = None
 
         self.epoch = 0
 
         self.avg_loss = 0.0
         self.avg_acc = 0.0
+        self.avg_rln = 0.0
+        self.avg_cer = 0.0
         self.val_avg_loss = 0.0
         self.val_avg_acc = 0.0
+        self.val_avg_rln = 0.0
+        self.val_avg_cer = 0.0
 
         self.parse_args()
         self.resolve_device()
@@ -49,7 +57,7 @@ class Trainer:
         self.init_model()
         self.init_optimizer()
         self.init_loss()
-        self.init_accuracy()
+        self.init_metrics()
 
         self.init_logger()
 
@@ -289,10 +297,11 @@ class Trainer:
         self.loss_fn = nn.CTCLoss(blank=0, zero_infinity=False, reduction="mean")
         self.log(f"Loss function initialized: {self.loss_fn.__class__.__name__}")
 
-    def init_accuracy(self):
+    def init_metrics(self):
         self.decoder = GreedyCTCDecoder(blank=0)
-        self.acc_fn = LetterNumberRecognitionRate(decoder=self.decoder, blank=0)
-        self.log(f"Accuracy function initialized: {self.acc_fn.__class__.__name__}")
+        self.rln = LetterNumberRecognitionRate(blank=0)
+        self.cer = CharErrorRate()
+        self.log("Metrics initialized.")
 
     def init_logger(self):
         if not self.args.wandb:
@@ -326,6 +335,10 @@ class Trainer:
                     "loss/val": self.val_avg_loss,
                     "acc/train": self.avg_acc,
                     "acc/val": self.val_avg_acc,
+                    "rln/train": self.avg_rln,
+                    "rln/val": self.val_avg_rln,
+                    "cer/train": self.avg_cer,
+                    "cer/val": self.val_avg_cer,
                 },
                 step=self.epoch,
             )
@@ -384,6 +397,14 @@ class Trainer:
         if self.logger:
             self.logger.finish()
 
+    def _compare_texts(self, preds, labels):
+        acc = 0
+        for pred, label in zip(preds, labels):
+            pred = "".join([LABELS_DICT[p] for p in pred])
+            label = "".join([LABELS_DICT[i] for i in label.numpy()])
+            acc += int(pred == label)
+        return acc / len(preds)
+
     def run(self):
         for epoch in range(self.args.epoch_start, self.args.epoch_end):
             self.epoch = epoch + 1
@@ -408,8 +429,10 @@ class Trainer:
     def train(self):
         running_loss = 0.0
         running_acc = 0.0
+        running_rln = 0.0
+        running_cer = 0.0
 
-        for i, (images, targets) in enumerate(
+        for i, (images, targets, labels) in enumerate(
             pbar := tqdm(
                 self.dl_train,
                 desc=f"Epoch {self.epoch}/{self.args.epoch_end}",
@@ -427,23 +450,33 @@ class Trainer:
             loss.backward()
             self.optimizer.step()
 
+            preds = self.decoder(logits)
+
             running_loss += loss.item()
-            running_acc += self.acc_fn(logits, targets)
+            running_acc += self._compare_texts(preds, labels)
+            running_rln += self.rln(preds, targets)
+            running_cer += self.cer(preds, targets)
 
             pbar.set_postfix(
                 loss=f"{running_loss / (i + 1):.4f}",
                 acc=f"{running_acc / (i + 1):.4f}",
+                rln=f"{running_rln / (i + 1):.4f}",
+                cer=f"{running_cer/(i + 1):.4f}",
             )
 
         self.avg_loss = running_loss / len(self.dl_train)
         self.avg_acc = running_acc / len(self.dl_train)
+        self.avg_rln = running_rln / len(self.dl_train)
+        self.avg_cer = running_cer / len(self.dl_train)
 
     @torch.inference_mode()
     def eval(self):
         running_loss = 0.0
         running_acc = 0.0
+        running_rln = 0.0
+        running_cer = 0.0
 
-        for i, (images, targets) in enumerate(
+        for i, (images, targets, labels) in enumerate(
             pbar := tqdm(
                 self.dl_val,
                 desc=f"Epoch {self.epoch}/{self.args.epoch_end}",
@@ -458,18 +491,28 @@ class Trainer:
             logits = self.model(images)
             loss = self.calculate_loss(logits, targets)
 
+            preds = self.decoder(logits)
+
             running_loss += loss.item()
-            running_acc += self.acc_fn(logits, targets)
+            running_acc += self._compare_texts(preds, labels)
+            running_rln += self.rln(preds, targets)
+            running_cer += self.cer(preds, targets)
 
             pbar.set_postfix(
                 loss=f"{self.avg_loss:.4f}",
                 acc=f"{self.avg_acc:.4f}",
+                rln=f"{self.avg_rln:.4f}",
+                cer=f"{self.avg_cer:.4f}",
                 val_loss=f"{running_loss / (i + 1):.4f}",
                 val_acc=f"{running_acc / (i + 1):.4f}",
+                val_rln=f"{running_rln / (i + 1):.4f}",
+                val_cer=f"{running_cer / (i + 1):.4f}",
             )
 
         self.val_avg_loss = running_loss / len(self.dl_val)
         self.val_avg_acc = running_acc / len(self.dl_val)
+        self.val_avg_rln = running_rln / len(self.dl_val)
+        self.val_avg_cer = running_cer / len(self.dl_val)
 
 
 if __name__ == "__main__":
