@@ -83,28 +83,10 @@ class Trainer:
             "--device", type=str, default=None, help="Device to use for training"
         )
         parser.add_argument(
-            "--optimizer",
-            type=str,
-            default="adam",
-            help="Optimizer to use. Values: ['adam', 'rmsprop', 'sgd']. Default: 'adam'",
-        )
-        parser.add_argument(
             "--learning-rate",
             type=float,
             default=0.001,
             help="Initial learning rate. Default: 0.001",
-        )
-        parser.add_argument(
-            "--momentum",
-            type=float,
-            default=0.9,
-            help="Momentum for RMSProp and SGD optimizer. Default: 0.9",
-        )
-        parser.add_argument(
-            "--weight-decay",
-            type=float,
-            default=2e-5,
-            help="Weight decay for the optimizer. Default: 2e-5",
         )
         parser.add_argument(
             "--batch-size",
@@ -163,7 +145,8 @@ class Trainer:
             default=False,
             help="Enable wandb logging",
         )
-        parser.add_argument("--run-id", type=str, default=None, help="Run ID for wandb")
+        parser.add_argument("--run-id", type=str,
+                            default=None, help="Run ID for wandb")
 
         # Spatial Transformer Network
         parser.add_argument(
@@ -245,7 +228,8 @@ class Trainer:
         self.model.use_stn(False)
 
         if self.args.checkpoint:
-            self.log(f"Restoring model from checkpoint: {self.args.checkpoint}")
+            self.log(
+                f"Restoring model from checkpoint: {self.args.checkpoint}")
             self.log(
                 self.model.load_state_dict(
                     torch.load(self.args.checkpoint, map_location=self.device)
@@ -255,36 +239,10 @@ class Trainer:
         self.log("Model initialized.")
 
     def init_optimizer(self):
-        valid_optim = ["adam", "rmsprop", "sgd"]
-        assert (
-            self.args.optimizer in valid_optim
-        ), f"--optimizer must be one of {valid_optim}. Got {self.args.optimizer}"
-
-        optim = self.args.optimizer
-
-        if optim == "adam":
-            self.optimizer = torch.optim.Adam(
-                self.model.parameters(),
-                betas=(self.args.momentum, 0.999),
-                lr=self.args.learning_rate,
-                weight_decay=self.args.weight_decay,
-            )
-        elif optim == "rmsprop":
-            self.optimizer = torch.optim.RMSprop(
-                self.model.parameters(),
-                lr=self.args.learning_rate,
-                alpha=0.9,
-                eps=1e-08,
-                momentum=self.args.momentum,
-                weight_decay=self.args.weight_decay,
-            )
-        elif optim == "sgd":
-            self.optimizer = torch.optim.SGD(
-                self.model.parameters(),
-                lr=self.args.learning_rate,
-                momentum=self.args.momentum,
-                weight_decay=self.args.weight_decay,
-            )
+        self.optimizer = torch.optim.Adam(
+            self.model.parameters(),
+            lr=self.args.learning_rate,
+        )
 
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(
             self.optimizer,
@@ -294,8 +252,10 @@ class Trainer:
         self.log(f"Optimizer initialized: {self.optimizer.__class__.__name__}")
 
     def init_loss(self):
-        self.loss_fn = nn.CTCLoss(blank=0, zero_infinity=False, reduction="mean")
-        self.log(f"Loss function initialized: {self.loss_fn.__class__.__name__}")
+        self.loss_fn = nn.CTCLoss(
+            blank=0, zero_infinity=False, reduction="mean")
+        self.log(
+            f"Loss function initialized: {self.loss_fn.__class__.__name__}")
 
     def init_metrics(self):
         self.decoder = GreedyCTCDecoder(blank=0)
@@ -383,7 +343,8 @@ class Trainer:
 
     def log_lr_scheduler(self):
         if self.epoch % self.args.learning_rate_scheduler_step == 0:
-            self.log(f"Learning rate updated to {self.lr_scheduler.get_last_lr()}")
+            self.log(
+                f"Learning rate updated to {self.lr_scheduler.get_last_lr()}")
 
     def cleanup(self):
         if (
