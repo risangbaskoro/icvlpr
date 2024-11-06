@@ -6,10 +6,13 @@ from torch import nn
 class LetterNumberRecognitionRate(nn.Module):
     """The Letter and Number Recognition Rate.
 
-    This class is used to compute the recognition rate for letter and number recognition task with the following formula:
-    :math:`R_{LN} = N_{LN} / (N_{A} \times k)` where :math:`R_{LN}` is the letter and number recognition rate, :math:`N_{LN}`
-    is the number of letters and numbers the system can accurately recognise, :math:`N_{A}` is the number of system location
-    images with an accurate license plate region, and :math:`k` is the number of letters and numbers in each license plate.
+    This class is used to compute the recognition rate for letter and number
+    recognition task with the following formula:
+    :math:`R_{LN} = N_{LN} / (N_{A} \times k)` where :math:`R_{LN}` is the
+    letter and number recognition rate, :math:`N_{LN}` is the number of letters
+    and numbers the system can accurately recognise, :math:`N_{A}` is the
+    number of system location images with an accurate license plate region,
+    and :math:`k` is the number of letters and numbers in each license plate.
 
     See: https://doi.org/10.1049/iet-its.2017.0138
 
@@ -17,8 +20,10 @@ class LetterNumberRecognitionRate(nn.Module):
         blank (int): Index of the blank token in the vocabulary.
 
     Shape:
-        pred (Tensor): :math:`(N, T)` where `N` is the batch size and `T` is the time-steps.
-        target (Tensor): :math:`(N, T)` where `N` is the batch size and `T` is the time-steps.
+        pred (Tensor): :math:`(N, T)` where `N` is the batch size and `T`
+            is the time-steps.
+        target (Tensor): :math:`(N, T)` where `N` is the batch size and `T`
+            is the time-steps.
     """
 
     def __init__(
@@ -41,7 +46,8 @@ class LetterNumberRecognitionRate(nn.Module):
         if targets.dim() != 2:
             raise ValueError("Expected a 2D tensor for target.")
 
-        # Convert targets to a list of lists and then remove the blank token elements
+        # Convert targets to a list of lists and then
+        # remove the blank token elements
         aligned_targets = targets.tolist()
         aligned_targets = [
             [token for token in sequence if token != self.blank]

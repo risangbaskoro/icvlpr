@@ -66,7 +66,9 @@ class BeamCTCDecoder(nn.Module):
         super().__init__()
 
         warnings.warn(
-            "BeamCTCDecoder is calculated in CPU. It may be slow for training. Use `GreedyCTCDecoder` instead.",
+            """BeamCTCDecoder is calculated in CPU. It may be slow for training.
+            Use `GreedyCTCDecoder` instead.
+            """,
             UserWarning,
         )
 
@@ -110,7 +112,8 @@ class BeamCTCDecoder(nn.Module):
         sequences = []
 
         for batch_idx in range(N):
-            # Initialize the beams with an empty sequence and a log probability of 0
+            # Initialize the beams with an empty sequence and
+            # a log probability of 0
             beams = [
                 (torch.tensor([], dtype=torch.long, device=log_probs.device), 0)
             ]  # (sequence, score)

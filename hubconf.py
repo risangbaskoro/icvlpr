@@ -1,4 +1,6 @@
 """
+Torch hub configuration for getting the model.
+
 Load Model:
     model = torch.hub.load('risangbaskoro/icvlpr', 'lprnet')
 

@@ -1,6 +1,5 @@
 import os
 import tarfile
-import sys
 
 import requests
 
@@ -15,6 +14,26 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 
 from utils import CHARS_DICT
+
+
+"""
+    An abstract class for a dataset.
+
+    This abstract class is the base class of other datasets used in this
+    project. It basically a container for the data and the labels.
+
+    It has some sorts of things, like downloading the data from an URL, loading
+    the data, and even to choose the corresponding subset to load.
+
+    To use the dataset, like ICVLPDataset for example, you can just call it
+    with the desired arguments, like where to save the downloaded file, which
+    subset to use, and what transformations to apply to the data and the target
+    when getting the data.
+
+    You can see the amount of daeta it holds by calling `len` function on the
+    instance. You can also get one instance of data from it using the square
+    brackets, just like you would on a list.
+"""
 
 
 class _Dataset(Dataset):
@@ -47,7 +66,8 @@ class _Dataset(Dataset):
             self._download()
 
         if not self._check_exists():
-            raise RuntimeError("Dataset not found. Use download=True to download it")
+            raise RuntimeError(
+                "Dataset not found. Use download=True to download it")
 
         self.data, self.targets = self._load_data()
 
@@ -142,12 +162,19 @@ class _Dataset(Dataset):
             for filename in self.resources
         ) and all(
             # Check if directories exists
-            os.path.exists(os.path.join(self.class_folder, filename.split("_")[0]))
+            os.path.exists(os.path.join(
+                self.class_folder, filename.split("_")[0]))
             for filename in self.resources
         )
 
 
 class ICVLPDataset(_Dataset):
+    """
+    The original dataset to ICVLP.
+    It contains around 800 labeled Indonesian
+    license plate images.
+    """
+
     version = "20240920"
 
     mirrors = ["https://data.risangbaskoro.com/icvlp/master"]
@@ -160,6 +187,10 @@ class ICVLPDataset(_Dataset):
 
 
 class BikeDataset(_Dataset):
+    """
+    Bike license plate dataset.
+    """
+
     version = "20240905"
 
     mirrors = ["https://data.risangbaskoro.com/icvlp/bikes"]
@@ -172,6 +203,12 @@ class BikeDataset(_Dataset):
 
 
 class SynthDataset(_Dataset):
+    """
+    Synthetic dataset that generated using
+    a blank slate of white version of
+    Indonesian license plate.
+    """
+
     mirrors = ["https://data.risangbaskoro.com/icvlp/synth"]
 
-    resources = [f"train.tar.gz", f"val.tar.gz", f"test.tar.gz"]
+    resources = ["train.tar.gz", "val.tar.gz", "test.tar.gz"]

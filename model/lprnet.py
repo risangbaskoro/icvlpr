@@ -5,8 +5,6 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-# TODO: Make all convolutional layers padding "same" if not stated by the paper.
-
 
 class SmallBasicBlock(nn.Module):
     """Small Basic Block for LPRNet backbone
@@ -198,6 +196,9 @@ class LPRNet(nn.Module):
         return logits
 
     def forward_stn(self, input: torch.Tensor) -> torch.Tensor:
+        """
+        If STN present, only forward to the STN module.
+        """
         if not self.using_stn or self.stn is None:
             return input
 
