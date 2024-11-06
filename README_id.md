@@ -8,7 +8,7 @@ Dataset terdiri dari sekitar 800 gambar plat nomor kendaraan niaga di Indonesia,
 Dataset ini dibagi menjadi tiga bagian, yaitu `train`, `val`, dan `test`, dengan proporsi masing-masing sebesar 80%, 10%, dan 10%.
 
 # Penggunaan
-## Training
+## Prasyarat
 Untuk melakukan *training*, pastikan Anda sudah menginstal *package* yang diperlukan:
 - PyTorch 2.4.0
 - NumPy
@@ -16,11 +16,17 @@ Untuk melakukan *training*, pastikan Anda sudah menginstal *package* yang diperl
 - tqdm
 - wandb (opsional)
 
+atau bisa menggunakan file `requirements.txt` yang sudah disediakan menggunakan `pip`:
+```shell
+pip install -r requirements.txt
+```
+
+## Training
 Untuk memulai *training*, jalankan perintah berikut di *shell* Anda:
 ```shell
 python train.py
 ```
-Anda juga bisa memodifikasi _hyperparameters_ selama proses pelatihan model. Untuk melihat opsi yang tersedia, gunakan _flag_ `--help`:
+Anda juga bisa memodifikasi *hyperparameters* selama proses pelatihan model. Untuk melihat opsi yang tersedia, gunakan _flag_ `--help`:
 ```shell
 python train.py --help
 ```
