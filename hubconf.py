@@ -33,6 +33,12 @@ def lprnet(pretrained: bool = True):
     return model
 
 
+def dataset(*args, **kwargs):
+    from dataset import ICVLPDataset
+
+    return ICVLPDataset(*args, **kwargs)
+
+
 def decoder(decoder: str = "greedy", beam_width: int = 5):
     assert decoder in [
         "greedy",
