@@ -20,14 +20,15 @@ dependencies = ["torch"]
 
 def lprnet(pretrained: bool = True):
     locnet = LocNet()
-    stn = SpatialTransformerLayer(localization=locnet, align_corners=False)
+    stn = SpatialTransformerLayer(localization=locnet, align_corners=True)
 
     model = LPRNet(stn=stn)
 
     if pretrained:
         url = "https://data.risangbaskoro.com/icvlp/models/epoch_811.pth"
         model.load_state_dict(
-            torch.hub.load_state_dict_from_url(url, map_location="cpu", progress=True)
+            torch.hub.load_state_dict_from_url(
+                url, map_location="cpu", progress=True)
         )
 
     return model
