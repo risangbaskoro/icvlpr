@@ -118,6 +118,12 @@ class Trainer:
             default=False,
             help="Concatenate dataset for final training",
         )
+        parser.add_argument(
+            "--augment",
+            action=argparse.BooleanOptionalAction,
+            default=True,
+            help="Augment the data before training. Default: True",
+        )
 
         # Checkpoint
         parser.add_argument(
@@ -151,7 +157,8 @@ class Trainer:
             default=False,
             help="Enable wandb logging",
         )
-        parser.add_argument("--run-id", type=str, default=None, help="Run ID for wandb")
+        parser.add_argument("--run-id", type=str,
+                            default=None, help="Run ID for wandb")
 
         # Spatial Transformer Network
         parser.add_argument(
@@ -175,8 +182,13 @@ class Trainer:
     def init_dataset(self):
         self.log("Initializing dataset...")
 
-        img_transforms = transforms.Compose(
-            [
+        img_transforms = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Resize((24, 94)),
+        ])
+
+        if self.args.augment:
+            img_transforms = transforms.Compose([
                 transforms.RandomAffine(
                     degrees=(-5, 5),
                     translate=(0.07, 0.05),
@@ -189,8 +201,7 @@ class Trainer:
                 ),
                 transforms.ToTensor(),
                 transforms.Resize((24, 94)),
-            ]
-        )
+            ])
 
         self.ds_train = ICVLPDataset(
             "data",
@@ -240,7 +251,9 @@ class Trainer:
         self.model.use_stn(False)
 
         if self.args.checkpoint:
-            self.log(f"Restoring model from checkpoint: {self.args.checkpoint}")
+            self.log(
+                f"Restoring model from checkpoint: {self.args.checkpoint}"
+            )
             self.log(
                 self.model.load_state_dict(
                     torch.load(self.args.checkpoint, map_location=self.device)
@@ -263,8 +276,12 @@ class Trainer:
         self.log(f"Optimizer initialized: {self.optimizer.__class__.__name__}")
 
     def init_loss(self):
-        self.loss_fn = nn.CTCLoss(blank=0, zero_infinity=False, reduction="mean")
-        self.log(f"Loss function initialized: {self.loss_fn.__class__.__name__}")
+        self.loss_fn = nn.CTCLoss(
+            blank=0, zero_infinity=False, reduction="mean"
+        )
+        self.log(
+            f"Loss function initialized: {self.loss_fn.__class__.__name__}"
+        )
 
     def init_metrics(self):
         self.decoder = GreedyCTCDecoder(blank=0)
@@ -288,6 +305,7 @@ class Trainer:
             "dataset-concatenated": self.args.concat_dataset,
             "loss": self.loss_fn.__class__.__name__,
             "optimizer": self.optimizer.__class__.__name__,
+            "augment": self.args.augment,
         }
 
         self.logger = wandb.init(
@@ -353,7 +371,8 @@ class Trainer:
 
     def log_lr_scheduler(self):
         if self.epoch % self.args.learning_rate_scheduler_step == 0:
-            self.log(f"Learning rate updated to {self.lr_scheduler.get_last_lr()}")
+            self.log(
+                f"Learning rate updated to {self.lr_scheduler.get_last_lr()}")
 
     def cleanup(self):
         if (
