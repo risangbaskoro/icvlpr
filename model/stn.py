@@ -23,13 +23,13 @@ class LocNet(nn.Module):
 
         self.dropout = nn.Dropout2d()
 
-        # FIXME: Fix the in_features. Read below.
-        # For in features in fc_1, we can get it from the product of the shape of the concatenation result of the last layer.
         self.fc_1 = nn.Linear(in_features=64 * 7 * 30, out_features=32)
         self.fc_2 = nn.Linear(in_features=32, out_features=6)
 
-        self.fc_2.weight.data.zero_().requires_grad_(False)
-        self.fc_2.bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float)).requires_grad_(False)
+        self.fc_2.weight.data.zero_()
+        self.fc_2.bias.data.copy_(
+            torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float)
+        )
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         """
