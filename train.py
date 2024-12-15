@@ -124,6 +124,12 @@ class Trainer:
             default=True,
             help="Augment the data before training. Default: True",
         )
+        parser.add_argument(
+            "--bike",
+            action=argparse.BooleanOptionalAction,
+            default=False,
+            help="If True, use bike dataset. Default: False",
+        )
 
         # Checkpoint
         parser.add_argument(
@@ -187,6 +193,12 @@ class Trainer:
             transforms.Resize((24, 94)),
         ])
 
+        ds = ICVLPDataset
+
+        if self.args.bike:
+            from dataset import BikeDataset
+            ds = BikeDataset
+
         if self.args.augment:
             img_transforms = transforms.Compose([
                 transforms.RandomAffine(
@@ -203,13 +215,13 @@ class Trainer:
                 transforms.Resize((24, 94)),
             ])
 
-        self.ds_train = ICVLPDataset(
+        self.ds_train = ds(
             "data",
             subset="train",
             transform=img_transforms,
             download=True,
         )
-        self.ds_val = ICVLPDataset(
+        self.ds_val = ds(
             "data",
             subset="val",
             transform=img_transforms,
@@ -217,7 +229,7 @@ class Trainer:
 
         if self.args.concat_dataset:
             self.ds_train = ConcatDataset([self.ds_train, self.ds_val])
-            self.ds_val = ICVLPDataset(
+            self.ds_val = ds(
                 "data",
                 subset="test",
                 transform=img_transforms,
