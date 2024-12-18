@@ -28,6 +28,9 @@ class LetterNumberRecognitionRate(nn.Module):
         super().__init__()
         self.blank = blank
 
+        self.corrects = 0
+        self.lengths = 0
+
     def forward(self, preds: list, targets: torch.Tensor) -> torch.Tensor:
         """Compute the Letter and Number Recognition Rate.
 
@@ -61,4 +64,10 @@ class LetterNumberRecognitionRate(nn.Module):
             corrects += num_correct
             lengths += len(target_sequence)
 
+        self.corrects += corrects
+        self.lengths += lengths
+
         return corrects / lengths
+
+    def result(self):
+        return self.corrects / self.lengths

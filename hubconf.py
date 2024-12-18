@@ -63,3 +63,9 @@ def converter():
     from utils import Converter
 
     return Converter()
+
+
+def rln(blank=0):
+    from metrics import LetterNumberRecognitionRate
+
+    return LetterNumberRecognitionRate(blank=blank)
