@@ -14,4 +14,4 @@ def pad_target_sequence(batch):
     padded_targets = pad_sequence(targets, batch_first=True, padding_value=0)
 
     # Return padded samples and targets
-    return torch.stack(samples), padded_targets
+    return torch.stack(samples), padded_targets, targets
